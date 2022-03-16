@@ -19,7 +19,9 @@
 * Reservation Requests are represented as “*Cases*”
 
 Here is a simple diagram explaining the flow :
-[Image: Screen Shot 2021-07-14 at 13.03.50.png]
+
+<img width="629" alt="Screen Shot 2021-07-14 at 13 03 50" src="https://user-images.githubusercontent.com/46943760/158511398-b5dba656-f451-4a36-992d-59097bc59856.png">
+
 *Requirements:*
 
 The code is really messed up and contains multiple bad practices. You jobs is to : 
