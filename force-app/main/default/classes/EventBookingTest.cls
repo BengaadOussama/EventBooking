@@ -8,26 +8,17 @@
 @isTest
 public class EventBookingTest {  
 
-        @TestSetup
-        static void makeData(){
-            makeAccount('Salesforce');
-
-            makeCase('Phone', 'phone case', null);
-
-            makeCase('Web', 'web case', null);
-        }
-
         @isTest
         public static void refuseCaseCreationWhenAnAccountIsNotAttachedToACase(){
-            // Given
-            Case request = makeCase('Phone', 'phone case', null);
+            // Create data
+            Case request = makeCase('Phone', 0 , false, false);
         
-            // When 
+            // Insert case
             Test.startTest();
             Database.SaveResult result = Database.insert(request, false);
             Test.stopTest();
 
-            // Then
+            // Asserts
             System.assert(!result.isSuccess());
             System.assert(result.getErrors().size() > 0);
             System.assertEquals('You cannot create a request without attaching an account',
@@ -36,17 +27,15 @@ public class EventBookingTest {
         
         @isTest
         public static void refuseCaseCreationWhenNoContactIsAttachedToAnAccount(){
-            // Given
-            Account a1 = makeAccount('Salesforce');
-
-            Case request = makeCase('Phone', 'Event Booking', a1.ID);
+            // Create data
+            Case request = makeCase('Phone', 0 , true, false);
             
-            // When 
+            // Insert case
             Test.startTest();
             Database.SaveResult result = Database.insert(request, false);
             Test.stopTest();
 
-            // Then
+            // Asserts
             System.assert(!result.isSuccess());
             System.assert(result.getErrors().size() > 0);
             System.assertEquals('You cannot create a request for accounts without contacts',
@@ -55,14 +44,8 @@ public class EventBookingTest {
         
         @isTest
         public static void bookEventFromPhone(){
-            // Given
-            Account a1 = makeAccount('Salesforce');
-            
-            Contact c1 = makeContact('Contact1', a1.Id, 'Contact1@test.com');
-            Contact c2 = makeContact('Contact2', a1.Id, 'Contact2@test.com');
-            Contact c3 = makeContact('Contact3', a1.Id, 'Contact3@test.com');
-    
-            Case request = makeCase('Phone', 'Event Booking', a1.ID);
+            // Create data
+            Case request = makeCase('Phone', 3 , true, false);
             
             // When 
             Test.startTest();
@@ -78,14 +61,7 @@ public class EventBookingTest {
         @isTest
         public static void refuseEventBookingWhenNumberOfAttendeesIsMoreThanThreeForPhoneCases(){
             // Given
-            Account a1 = makeAccount('Salesforce');
-            
-            Contact c1 = makeContact('Contact1', a1.Id, 'Contact1@test.com');
-            Contact c2 = makeContact('Contact2', a1.Id, 'Contact2@test.com');
-            Contact c3 = makeContact('Contact3', a1.Id, 'Contact3@test.com');
-            Contact c4 = makeContact('Contact4', a1.Id, 'Contact4@test.com');
-    
-            Case request = makeCase('Phone', 'Event Booking', a1.ID);
+            Case request = makeCase('Phone', 5 , true, false);
 
             // When 
             Test.startTest();
@@ -103,11 +79,7 @@ public class EventBookingTest {
         @isTest
         public static void bookEventFromTheWeb(){
             // Given
-            Account a1 = makeAccount('Salesforce');
-            
-            Contact c1 = makeContact('Contact1', a1.Id, 'Contact1@test.com');
-    
-            Case request = makeCase('Web', 'Event Booking', a1.ID);
+            Case request = makeCase('Web', 1 , true, false);
 
             // When 
             Test.startTest();
@@ -124,13 +96,7 @@ public class EventBookingTest {
         @isTest
         public static void refuseEventBookingWhenNumberOfAttendeesIsMoreThanOneForWebCases(){
             // Given
-           // Given
-           Account a1 = makeAccount('Salesforce');
-            
-           Contact c1 = makeContact('Contact1', a1.Id, 'Contact1@test.com');
-           Contact c2 = makeContact('Contact2', a1.Id, 'Contact1@test.com');
-   
-           Case request = makeCase('Web', 'Event Booking', a1.ID);
+            Case request = makeCase('Web', 2 , true, false);
 
             // When 
             Test.startTest();
@@ -147,14 +113,14 @@ public class EventBookingTest {
     
          @isTest
          public static void BestCaseScenarioOfClosingACase(){
-            
+            //prepare case
+            Case request = makeCase('Phone', 3 , true, false);
+
+            //Insert case
             Test.setMock(HttpCalloutMock.class, new ExternalSystemMockout());
             Test.startTest();
-            Account a1 = makeAccount('Salesforce');
-            Contact c1 = makeContact('Contact1', a1.Id, 'Contact1@test.com');
-            Case request = makeCase('Web', 'Event Booking', a1.ID);
             Database.SaveResult result = Database.insert(request, false);
-            
+            //Close Case
             request.Status = 'Closed';
             result = Database.update(request, false);
             Test.stopTest();
@@ -163,26 +129,74 @@ public class EventBookingTest {
             System.assert(result.isSuccess());
         }
 
+        @isTest
+         public static void sendEmailToContactWithNoEmail(){
+            //prepare contact
+            Contact c = makeContact('Contact1', null, null, false);
 
-        static account makeAccount(String name){
-            return (Account)TestDataFactory.createSObject('Account',new Map<String,Object> {
-                'Name' => name
-            },true);
+            //Insert conatct
+            Test.setMock(HttpCalloutMock.class, new ExternalSystemMockout());
+            Test.startTest();
+            Database.SaveResult result = Database.insert(c, false);
+            //No Excpetion should be thrown since the sendEmail is handled whithin a try-catch block
+            EmailService.sendEmail(new List<Contact>{c});
+            Test.stopTest();
+ 
+            // Then
+            System.assert(result.isSuccess());
         }
 
-        static Contact makeContact(String lastname,Id accountId, String email){
+        
+        /**
+        * @description : Automate account creation
+        * @author Oussama Bengaad  (obengaad@salesforce.com) | 17-03-2022 
+        * @param name : Account Name
+        * @param doInsert : if true the account instance is inserted
+        * @return account 
+        **/
+        static account makeAccount(String name,Boolean doInsert){
+            return (Account)TestDataFactory.createSObject('Account',new Map<String,Object> {
+                'Name' => name
+            },doInsert);
+        }
+
+        /**
+        * @description : Automate contact creation
+        * @author Oussama Bengaad  (obengaad@salesforce.com) | 17-03-2022 
+        * @param lastname 
+        * @param accountId 
+        * @param email 
+        * @param doInsert : if true the contact instance is inserted
+        * @return Contact 
+        **/
+        static Contact makeContact(String lastname,Id accountId, String email, Boolean doInsert){
             return (Contact)TestDataFactory.createSObject('Contact',new Map<String,Object> {
                 'LastName' => lastname,
                 'AccountId' => accountId,
                 'Email' => email
-            },true);
+            },doInsert);
         }
 
-        static Case makeCase(String origin,String subject, Id accountId){
+        /**
+        * @description : Automate case creation
+        * @author Oussama Bengaad  (obengaad@salesforce.com) | 17-03-2022 
+        * @param origin 
+        * @param nbContacts : nb of contact to create
+        * @param withAccount :if True, create an account and link the case to it
+        * @param doInsert : if true the case instance is inserted
+        * @return Case 
+        **/
+        static Case makeCase(String origin,Integer nbContacts, Boolean withAccount, Boolean doInsert){
+            Account acc = makeAccount('Salesforce',true);
+
+            for(integer i=1;i<=nbContacts;i++){
+                makeContact('Contact'+i, acc.Id, 'contact'+i+'@test.com',true);
+            }
+
             return (Case)TestDataFactory.createSObject('Case', new Map<String,Object>{
                 'Origin' => origin,
-                'Subject' => subject,
-                'AccountId' => accountId
-            }, true);
+                'Subject' => origin+' case',
+                'AccountId' => withAccount==false?null:acc.Id
+            }, doInsert);
         }
 }
