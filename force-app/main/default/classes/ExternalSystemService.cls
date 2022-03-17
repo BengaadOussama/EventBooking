@@ -19,7 +19,7 @@ public with sharing class ExternalSystemService {
 
         List<Contact> contactsToNotify = new List<Contact>();
 
-        for(Contact c : [SELECT id,name, email FROM Contact WHERE accountid IN :accountIds ]){
+        for(Contact c : ContactDAO.getContactsByAccountsId(accountIds)){
             Http http = new Http();
             HttpRequest request = new HttpRequest();
 
@@ -34,8 +34,9 @@ public with sharing class ExternalSystemService {
 
             // Parse the JSON response
             if (response.getStatusCode() != 201) {
-                System.debug('The status code returned was not expected: ' +
-                response.getStatusCode() + ' ' + response.getStatus());
+                String errorMsg = 'The status code returned was not expected: ' +
+                response.getStatusCode() + ' ' + response.getStatus();
+                Log.error(errorMsg);
             } else {
                 // Everything went as expected.
                 contactsToNotify.add(c);
@@ -43,55 +44,19 @@ public with sharing class ExternalSystemService {
             
         }
 
-        if(contactsToNotify.size()!=0)
+        if(contactsToNotify.size()!=0){
             notifyAttendeesByEmail(contactsToNotify);
+        }
     } 
 
     /**
-    * @description : Notify our clients
+    * @description : create tasks and email clients
     * @author Oussama Bengaad  (obengaad@salesforce.com) | 16-03-2022 
     * @param c 
     **/
     public static void notifyAttendeesByEmail(List<Contact> cs){
-        List<Task> tks = new List<Task>();
-
-        for(Contact c : cs){
-            Task tk = new Task();
-            tk.Subject = 'Send Email To ' + c.name;
-            tk.Status = 'Open';
-            tk.Priority = 'Normal';
-            tk.WhoId = c.ID;
-
-            tks.add(tk);
-            sendEmail(c);
-        }
-
-        insert tks;
+        TaskDAO.createEmailTasksForContacts(cs);
+        EmailService.sendEmail(cs);
     } 
-
-
-    /**
-    * @description : Sending emails
-    * @author Oussama Bengaad  (obengaad@salesforce.com) | 16-03-2022 
-    * @param c 
-    **/
-    public static void sendEmail(Contact c){
-        
-        Messaging.SingleEmailMessage mail = new Messaging.SingleEmailMessage();
- 
-        // To address
-        String[] toAddresses = new String[] {c.Email};
-        mail.setToAddresses(toAddresses);
- 
-        
-        // Email content
-        mail.setSenderDisplayName('B. Hotels');
-        mail.setSubject('Confirm reservation');
-        mail.setPlainTextBody('Your reservation has been confirmed');
- 
-        // Send the email
-        Messaging.sendEmail(new Messaging.SingleEmailMessage[] {mail} );
-    }
-   
 
 }
