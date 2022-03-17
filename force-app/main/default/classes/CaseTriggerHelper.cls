@@ -22,7 +22,7 @@ public with sharing class CaseTriggerHelper {
         }
   
         //Get account records
-        Map<Id,Account> accounts = new Map<Id,Account>([SELECT id, (select id from contacts) FROM Account WHERE id IN :accountIds]);
+        Map<Id,Account> accounts = AccountDAO.getAccountsMapAndTheirContactsByIds(accountIds);
        
         // Bulkify the logic
         for(Case r : newCaseList){
