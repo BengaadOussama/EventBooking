@@ -2,7 +2,7 @@
  * @description       : Case Trigger Helper Class
  * @author            : Oussama Bengaad  (obengaad@salesforce.com)
  * @group             : 
- * @last modified on  : 16-03-2022
+ * @last modified on  : 17-03-2022
  * @last modified by  : Oussama Bengaad  (obengaad@salesforce.com)
 **/
 public with sharing class CaseTriggerHelper {
@@ -70,15 +70,14 @@ public with sharing class CaseTriggerHelper {
         // Bulkify the logic
         Set<Id> accountIds = new Set<Id>(); 
         For(Case c : newCaseList){
-            if(r.Status == 'Closed'){
+            if(C.Status == 'Closed'){
                 accountIds.add(c.accountId);
             }
         }
    
         // web service callout
         if(accountIds.size()!=0){
-                ExternalSystemService service = new ExternalSystemService();
-                service.registerAttendees(accountIds);
+                ExternalSystemService.registerAttendees(accountIds);
         }
     }
 }
