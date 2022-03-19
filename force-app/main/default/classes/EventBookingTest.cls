@@ -2,7 +2,7 @@
  * @description       : Test Class for event booking system
  * @author            : Oussama Bengaad  (obengaad@salesforce.com)
  * @group             : 
- * @last modified on  : 17-03-2022
+ * @last modified on  : 18-03-2022
  * @last modified by  : Oussama Bengaad  (obengaad@salesforce.com)
 **/
 @isTest
@@ -129,24 +129,6 @@ public class EventBookingTest {
             System.assert(result.isSuccess());
         }
 
-        @isTest
-         public static void sendEmailToContactWithNoEmail(){
-            //prepare contact
-            Contact c = makeContact('Contact1', null, null, false);
-
-            //Insert conatct
-            Test.setMock(HttpCalloutMock.class, new ExternalSystemMockout());
-            Test.startTest();
-            Database.SaveResult result = Database.insert(c, false);
-            //No Excpetion should be thrown since the sendEmail is handled whithin a try-catch block
-            EmailService.sendEmail(new List<Contact>{c});
-            Test.stopTest();
- 
-            // Then
-            System.assert(result.isSuccess());
-        }
-
-        
         /**
         * @description : Automate account creation
         * @author Oussama Bengaad  (obengaad@salesforce.com) | 17-03-2022 
