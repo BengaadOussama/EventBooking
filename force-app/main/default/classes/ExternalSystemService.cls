@@ -2,7 +2,7 @@
  * @description       : External web service callout and email service
  * @author            : Oussama Bengaad  (obengaad@salesforce.com)
  * @group             : 
- * @last modified on  : 17-03-2022
+ * @last modified on  : 19-03-2022
  * @last modified by  : Oussama Bengaad  (obengaad@salesforce.com)
 **/
 public with sharing class ExternalSystemService {
@@ -14,38 +14,58 @@ public with sharing class ExternalSystemService {
     * @author Oussama Bengaad  (obengaad@salesforce.com) | 16-03-2022 
     * @param accountIds 
     **/
-    @future (callout=true)
+    
     public static void registerAttendees(Set<Id> accountIds){
 
-        List<Contact> contactsToNotify = new List<Contact>();
+        Map<Id,String> contactsToNotify = new Map<Id,String>();
 
+        /*
+        Prepare the JSON req body, if we send contacts 1 by 1 ,
+        we will exceed the API governor limit of 100 , in case 
+        there are more than 100 contacts to be sent to the 
+        external system
+        */
         for(Contact c : ContactDAO.getContactsByAccountsId(accountIds)){
-            Http http = new Http();
-            HttpRequest request = new HttpRequest();
-
-            //Prepare the HTTP request
-            request.setEndpoint(WEBSERVICEURL);
-            request.setMethod('POST');
-            request.setHeader('Content-Type', 'application/json; charset=UTF-8');
-            request.setBody('{"name":"'+ c.name + '-' + c.email  +'"}');
-
-            //Send the HTTP request
-            HttpResponse response = http.send(request);
-
-            // Parse the JSON response
-            if (response.getStatusCode() != 201) {
-                String errorMsg = 'The status code returned was not expected: ' +
-                response.getStatusCode() + ' ' + response.getStatus();
-                Log.error(errorMsg);
-            } else {
-                // Everything went as expected.
-                contactsToNotify.add(c);
-            }
-            
+            //Prepare the HTTP request body
+            String body = '{"name":"'+ c.name + '-' + c.email  +'"}';
+            contactsToNotify.put(c.Id, body);
         }
 
         if(contactsToNotify.size()!=0){
-            notifyAttendeesByEmail(contactsToNotify);
+            externalSystemCallout(contactsToNotify);
+        }
+    } 
+
+    /**
+    * @description : Methods that handles the callout to the external system 
+    * and sends conatcts infos at one shot to avoid API governor limit of 
+    * 100 calls in a transaction
+    * @author Oussama Bengaad  (obengaad@salesforce.com) | 16-03-2022 
+    * @param c 
+    **/
+    @future (callout=true)
+    private static void externalSystemCallout(Map<Id,String> contactsToNotify){
+        
+        Http http = new Http();
+        HttpRequest request = new HttpRequest();
+
+        //Prepare the HTTP request
+        request.setEndpoint(WEBSERVICEURL);
+        request.setMethod('POST');
+        request.setHeader('Content-Type', 'application/json; charset=UTF-8');
+        String reqBody = Json.serialize(contactsToNotify.values());
+        request.setBody(reqBody);
+
+        //Send the HTTP request
+        HttpResponse response = http.send(request);
+
+        // Parse the JSON response
+        if (response.getStatusCode() != 201) {
+            String errorMsg = 'The status code returned was not expected: ' +
+            response.getStatusCode() + ' ' + response.getStatus();
+            Log.error(errorMsg);
+        } else {
+            notifyAttendeesByEmail(contactsToNotify.keySet());
         }
     } 
 
@@ -54,9 +74,9 @@ public with sharing class ExternalSystemService {
     * @author Oussama Bengaad  (obengaad@salesforce.com) | 16-03-2022 
     * @param c 
     **/
-    public static void notifyAttendeesByEmail(List<Contact> cs){
+    private static void notifyAttendeesByEmail(Set<Id> cs){
         TaskDAO.createEmailTasksForContacts(cs);
-        EmailService.sendEmail(cs);
+        EmailService.sendSingleEmails(cs);
     } 
 
 }
